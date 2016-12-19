@@ -1,0 +1,9 @@
+# Build directory
+target
+
+# Since this is a library
+Cargo.lock
+
+# IDEA Compatibility
+.idea
+fountain_codes.iml
