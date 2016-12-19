@@ -6,7 +6,7 @@ license = "MIT"
 description = "Fountain codes implemented in Rust"
 
 repository = "https://github.com/Others/fountain_codes"
-keywords = ["encoding", "erasure code", "fountain code"]
+keywords = ["encoding", "code", "erasure", "fountain"]
 
 [dependencies]
 rand = "0.3.15"
