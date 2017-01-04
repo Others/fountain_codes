@@ -2,9 +2,12 @@ use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::io::{self, Cursor};
 use std::ops::{BitXor, BitXorAssign, Index};
 
-use super::{Data, Metadata, PartialEncoder, Encoder, Decoder, Client, CreationError, Source};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+
+use super::{Client, CreationError, Data, Decoder, Encoder, Metadata, Packet, PartialEncoder, Source};
 use super::distributions::{Distribution, RobustSolitonDistribution};
 
 
@@ -247,10 +250,11 @@ impl Decoder<LtPacket> for LtClient {
 }
 
 // We use a wrapper struct so we can impl on Block
+const BLOCK_BYTES: usize = 1024;
+
 struct Block {
     data: [u8; BLOCK_BYTES]
 }
-const BLOCK_BYTES: usize = 1024;
 
 impl Block {
     fn new() -> Block {
@@ -330,5 +334,68 @@ impl LtPacket {
             combined_blocks: combined_blocks,
             data: data
         }
+    }
+}
+
+impl Packet for LtPacket {
+    fn from_bytes(bytes: Vec<u8>) -> io::Result<LtPacket> {
+        let mut rdr = Cursor::new(bytes);
+
+        let block_count = rdr.read_u32::<BigEndian>()?;
+        let mut combined_blocks = Vec::new();
+        for _ in 0..block_count {
+            let block = rdr.read_u32::<BigEndian>()?;
+            combined_blocks.push(block);
+        }
+
+        let mut block_data = [0; BLOCK_BYTES];
+        for i in 0..BLOCK_BYTES {
+            block_data[i] = rdr.read_u8()?;
+        }
+
+        let block = Block::from_data(block_data);
+
+        Ok(LtPacket::new(combined_blocks, block))
+    }
+
+    fn to_bytes(&self) -> io::Result<Vec<u8>> {
+        let mut dest = Vec::new();
+
+        dest.write_u32::<BigEndian>(self.combined_blocks.len() as u32)?;
+        for block in &self.combined_blocks {
+            dest.write_u32::<BigEndian>(*block)?;
+        }
+
+        for byte in self.data.data() {
+            dest.write_u8(*byte)?;
+        }
+
+        Ok(dest)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::Packet;
+    use super::{BLOCK_BYTES, Block, LtPacket};
+
+    #[test]
+    fn block_equals() {
+        assert_eq!(Block::new() ^ &Block::new(), Block::new());
+
+        let one_block = Block::from_data([1; BLOCK_BYTES]);
+
+        assert_eq!(one_block.clone() ^ &Block::new(), one_block);
+    }
+
+    #[test]
+    fn packet_round_trips() {
+        let combined_blocks = vec![1, 2, 3, 4, 5];
+        let block_data = [0; BLOCK_BYTES];
+        let packet = LtPacket::new(combined_blocks.clone(), Block::from_data(block_data).clone());
+
+        let bytes = packet.clone().to_bytes().unwrap();
+
+        assert_eq!(LtPacket::from_bytes(bytes).unwrap(), packet);
     }
 }
