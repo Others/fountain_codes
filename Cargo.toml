@@ -1,6 +1,6 @@
 [package]
 name = "fountain_codes"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Gregor Peach <gregorpeach@gmail.com>"]
 license = "MIT"
 description = "Fountain codes implemented in Rust"

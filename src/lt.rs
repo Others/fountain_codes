@@ -80,7 +80,6 @@ impl Encoder<LtPacket> for LtSource {
         }
 
         choose_blocks_to_combine(&self.distribution, &mut blocks);
-        println!("Creating packet of {} blocks", blocks.len());
 
         let mut new_block = Block::new();
         for block_id in &blocks {
@@ -99,8 +98,9 @@ pub struct LtClient {
     distribution: Distribution,
 
     decoded_blocks: HashMap<u32, Block>,
+
     // TODO: Can we organize this data to find Packets containing certain blocks quicker?
-    // Consider adding a second field, representing how many
+    // TODO: Refactor to do only one pass if the block cannot be simplified, modifying in place
     stale_packets: HashSet<LtPacket>
 }
 
